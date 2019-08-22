@@ -1,0 +1,428 @@
+---
+title: "HSCT_GH_code"
+author: "David Bennett"
+date: "19/08/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+library(tidyverse)
+library(pander)
+library(knitr)
+library(BayesFactor)
+library(ggplot2)
+library(apaTables)
+library(psych)
+library(corrgram)
+```
+
+
+Arranged Data Frame
+
+```{r}
+HSCT_correct_RT2
+
+HSCT_correct_RT2_2<-HSCT_correct_RT2 %>% 
+  select(partID, Condition, ConditionSection, TimeTaken, Trial, MinusStatement, Column1) %>% 
+
+filter(MinusStatement > 400) %>% 
+ filter(partID > 44)%>%
+  filter(partID!=47)%>%
+  
+  rename( error_rate = Column1) %>% 
+  
+ 
+  
+  mutate(z_score = scale(MinusStatement, center=TRUE, scale = TRUE))
+  
+ HSCT_correct_RT2_2
+  
+```
+  
+
+
+Data frame for analysis of the non.inhibitory trials. Z scores were calculated but never used.
+
+```{r}
+non.inhib.<-HSCT_correct_RT2 %>% 
+  select(ConditionSection, Condition, TimeTaken, partID, Trial, MinusStatement, error_rate) %>%
+  filter(MinusStatement > 400) %>% 
+ filter(partID > 44)%>%
+  filter(partID!=47)%>%
+  
+  mutate(Condition = as.factor(Condition)) %>% 
+  mutate(ConditionSection  = as.factor(ConditionSection)) %>%
+  
+  mutate(z_score = scale(MinusStatement, center=TRUE, scale = TRUE)) %>%  
+ 
+  
+  filter(Trial < 16)  
+
+non.inhib.
+```
+
+Data frame for analysis of the inhibitory trials. Z scores were calculated but never used.
+
+```{r}
+inhib%>% 
+  select(ConditionSection, Condition, TimeTaken, Trial, partID, MinusStatement, error_rate) %>%
+  filter(MinusStatement > 400) %>% 
+  filter(partID > 44)%>%
+  filter(partID!=47)%>%
+  
+  mutate(Condition = as.factor(Condition)) %>% 
+  mutate(ConditionSection  = as.factor(ConditionSection)) %>% 
+  
+  mutate(z_score = scale(MinusStatement, center=TRUE, scale = TRUE))%>%
+
+
+filter(Trial > 15)  
+
+inhib 
+```
+
+The overview (sd, median, and mean) of the 'time to sentence completion' data in both inhibitory and non-inhibitory conditions accross groups.
+
+```{r}
+non.inhib. %>% 
+  
+  filter(MinusStatement > 400) %>%
+  group_by(Condition, ConditionSection) %>% 
+  summarise(mean=mean(MinusStatement), median=median(MinusStatement), sd=sd(MinusStatement)) %>% 
+  
+   
+ 
+  pander(caption="Mean, Median, and Standard deviation of reaction times in non-inhibitory condition.")
+
+inhib %>% 
+  filter(MinusStatement > 400) %>%
+  group_by(Condition, ConditionSection) %>% 
+  summarise(mean=mean(MinusStatement), median=median(MinusStatement), sd=sd(MinusStatement)) %>% 
+
+ 
+  pander(caption= "Mean, Median, and Standard Deviation of reaction times in inhibitory condition.")
+  
+ 
+```
+
+Overview of the error rate (sd and mean) data in both inhibitory and non-inhibitory trials accross groups.
+
+```{r}
+non.inhib. %>% 
+ 
+  select(Condition,ConditionSection, Trial, error_rate, partID) %>% 
+  group_by(Condition, ConditionSection) %>%
+  filter(partID > 44)%>%
+  filter(partID!=47)%>%
+
+  summarise(mean=mean(error_rate), sd=sd(error_rate)) %>% 
+  pander(caption= "Error rate (SD and Mean) in non-inhibitory condition")
+
+  
+  
+inhib%>% 
+  select(Condition,ConditionSection, Trial, error_rate, partID) %>% 
+  group_by(Condition, ConditionSection) %>% 
+filter(partID > 44)%>%
+  filter(partID!=47)%>%
+  summarise(mean=mean(error_rate),  sd=sd(error_rate)) %>% 
+  
+  pander(caption= "Error rate (SD and Mean) in inhibitory condition.")
+
+```
+
+ANOVA for interactions between group and trial type on the median of the 'time to sentence completion'.
+No significance found f(2,38)=1.486, p=.23
+
+```{r}
+HSCTmedianRT %>% 
+  group_by(Condition, ConditionSection, MinusStatement, Trial, partID) %>% 
+
+  
+  
+ filter(MinusStatement > 400) %>% 
+ filter(partID > 44)%>%
+  filter(partID!=47) %>% 
+
+summarise (median = median(MinusStatement, na.rm = TRUE))
+
+HSCTmedianRT
+
+lmABImed<-lm(median ~ ConditionSection + Condition, data = HSCTmedianRT)
+
+lmreact<-lmABI
+
+car::Anova(lmreact, type=3)
+
+
+```
+
+ANOVA for interactions between group and trial type on the error rate.
+significance found f(2,38)=15.56, p=.000
+
+```{r}
+lm.error.data %>% 
+  select(Condition, ConditionSection, MinusStatement, error_rate, Trial, partID) %>% 
+  filter(MinusStatement > 400) %>% 
+ filter(partID > 44)%>%
+  filter(partID!=47)
+
+lmerror<-lm(error_rate ~ ConditionSection + Condition, data = lm.error.data)
+
+car::Anova(lmerror, type=3) 
+
+```
+
+Cohen d.
+1. Error rate in non-inhib - non ABI.
+No significant effect size d=0.11(negligable)
+
+```{r}
+error_rate.Cohen.d.nonABI %>% 
+  select(Condition, ConditionSection, partID, MinusStatement, error_rate, Trial) %>% 
+  filter(MinusStatement > 400) %>% 
+ filter(partID > 44)%>%
+  filter(partID!=47) %>% 
+    filter(Condition=="Non-ABI") %>% 
+  filter(Trial < 16)
+  
+  error_rate.Cohen.d.nonABI
+
+  
+cohen.d(error_rate~ConditionSection, data = error_rate.Cohen.d.nonABI)
+
+```
+
+2. Error rate in  inhib trials non-ABI group
+No significant error size d=0.03(negligible)
+
+```{r}
+error_rate.inh.Cohen.d.nonABI<-HSCT_correct_RT2_2 %>% 
+  select(Condition, ConditionSection, partID, MinusStatement, error_rate, Trial) %>% 
+  filter(MinusStatement > 400) %>% 
+ filter(partID > 44)%>%
+  filter(partID!=47) %>% 
+    filter(Condition=="Non-ABI") %>% 
+  filter(Trial > 16)
+  
+  error_rate.inh.Cohen.d.nonABI
+
+  
+cohen.d(error_rate~ConditionSection, data = error_rate.inh.Cohen.d.nonABI)
+
+```
+
+3. Error rate in the non-inhib trials of ABIgroup
+no significant effect size d=.13 (negligible)
+
+```{r}
+error_rate.Cohen.d.ABI<-HSCT_correct_RT2_2 %>% 
+  select(Condition, ConditionSection, partID, MinusStatement, error_rate, Trial) %>% 
+  filter(MinusStatement > 400) %>% 
+ filter(partID > 44)%>%
+  filter(partID!=47) %>% 
+    filter(Condition=="ABI") %>% 
+  filter(Trial < 16)
+  
+  error_rate.Cohen.d.ABI
+
+  
+cohen.d(error_rate~ConditionSection, data = error_rate.Cohen.d.ABI)
+```
+
+4. Error rate in the inhib trials of the ABI group
+Significant effect size d=.43 (small)
+
+```{r}
+error_rate.Cohen.d.inh.ABI<-HSCT_correct_RT2_2 %>% 
+  select(Condition, ConditionSection, partID, MinusStatement, error_rate, Trial) %>% 
+  filter(MinusStatement > 400) %>% 
+ filter(partID > 44)%>%
+  filter(partID!=47) %>% 
+    filter(Condition=="ABI") %>% 
+  filter(Trial > 16)
+  
+  error_rate.Cohen.d.inh.ABI
+
+  
+cohen.d(error_rate~ConditionSection, data = error_rate.Cohen.d.inh.ABI)
+```
+
+Baysian analysis of models
+
+1) response times
+```{r}
+anov.lmBF<-HSCT_correct_RT2_2 %>% 
+  mutate_if(is.logical, factor)
+
+  lmBF(MinusStatement~ConditionSection + Condition, data = HSCT_correct_RT2_2)
+  
+
+```
+
+2) error rate
+
+```{r}
+error_rate.lmBF<-HSCT_correct_RT2_2 %>% 
+  mutate_if(is.logical, factor)
+
+  lmBF(error_rate~ConditionSection + Condition, data = HSCT_correct_RT2_2)
+
+
+
+```
+
+Plots
+
+```{r}
+
+plot1RT.inhib<-inhib %>% 
+  
+  ggplot(aes( ConditionSection, MinusStatement, group=Condition, color = Condition )) +
+  stat_summary(geom="pointrange", fun.data=mean_se) +
+  stat_summary(geom="line", fun.data=mean_se) +
+  ylab("Time taken for statement completion (Ms)") +
+  scale_color_discrete(name="") +
+  xlab("")+
+  coord_cartesian(ylim = c(1600, 3200))+
+  
+  theme(legend.background = element_rect(fill = "white"))+
+  theme(legend.position = "bottom")+
+  ggtitle("Inhibitory condition")
+  
+
+plot1RT.inhib
+
+plot2RT.noninhib<-non.inhib. %>%  
+  ggplot(aes( ConditionSection, MinusStatement, group=Condition, color=Condition)) +
+  stat_summary(geom="pointrange", fun.data=mean_se) +
+  stat_summary(geom="line",  fun.data=mean_se) +
+  ylab("Time taken for statement completion (Ms)") +
+  scale_color_discrete(name="") +
+  xlab("")+
+  coord_cartesian(ylim = c(1600, 3200))+
+  theme(legend.background = element_rect(fill = "white"))+
+  theme(legend.position = "bottom")+
+  ggtitle("Non-inhibitory")
+
+plot2RT.noninhib
+
+plot1.inhib.error<-inhib %>% 
+   ggplot(aes( ConditionSection, error_rate, group=Condition, color=Condition)) +
+  stat_summary(geom="pointrange", fun.data=mean_se) +
+  stat_summary(geom="line",  fun.data=mean_se) +
+  ylab("Error rate") +
+  scale_color_discrete(name="") +
+  xlab("")+
+  coord_cartesian(ylim = c(0, 0.5))+
+  theme(legend.background = element_rect(fill = "white"))+
+  theme(legend.position = "bottom")+
+  ggtitle("Inhibitory condition")
+
+plot1.inhib.error
+
+plot2.noninhib.error<-non.inhib. %>% 
+  ggplot(aes( ConditionSection, error_rate,group=Condition, color=Condition)) +
+  stat_summary(geom="pointrange", fun.data=mean_se) +
+  stat_summary(geom="line",  fun.data=mean_se) +
+  ylab("Error rate") +
+  scale_color_discrete(name="") +
+  xlab("")+
+  coord_cartesian(ylim = c(0, 0.5))+
+  theme(legend.background = element_rect(fill = "white"))+
+  theme(legend.position = "bottom")+
+  ggtitle("Non-inhibitory condition")
+  
+
+
+plot2.noninhib.error
+
+plotnon.inhibgroup<-non.inhib. %>% 
+  filter(Condition=="ABI") %>% 
+  ggplot(aes(ConditionSection, error_rate, group = partID ))+
+  stat_summary(geom="pointrange") +
+  stat_summary(geom="line")+
+   ylab("Error rate") +
+  xlab("")+
+  
+  
+  ggtitle("Error rate for non-inhibitory condition:\nIndividual results (ABI)")+
+  coord_cartesian(ylim = c(0, 1.6))
+  
+
+
+plotnon.inhibgroup 
+
+plotnon.inhibgroupnonabi<-non.inhib. %>% 
+  filter(Condition=="Non-ABI") %>% 
+  ggplot(aes(ConditionSection, error_rate, group = partID ))+
+  stat_summary(geom="pointrange") +
+  stat_summary(geom="line")+
+   ylab("Error rate") +
+  xlab("")+
+  
+  
+  ggtitle("Error rate for non-inhibitory condition:\nIndividual results (non-ABI)")+
+  coord_cartesian(ylim = c(0, 1.6))
+  
+
+
+plotnon.inhibgroupnonabi 
+
+plotinhibgroup<-inhib %>% 
+  filter(Condition=="ABI") %>% 
+  ggplot(aes(ConditionSection, error_rate, group = partID))+
+  stat_summary(geom="pointrange") +
+  stat_summary(geom="line")+
+   ylab("Error rate") +
+  coord_cartesian(ylim = c(0, 1.6))+
+  
+   
+  xlab("")+
+  
+  ggtitle("Error rate for inhibitory condition: \nIndividual results (ABI)")
+
+plotinhibgroup
+
+plotinhibgroupnonabi<-inhib %>% 
+  filter(Condition=="Non-ABI") %>% 
+  ggplot(aes(ConditionSection, error_rate, group = partID))+
+  stat_summary(geom="pointrange") +
+  stat_summary(geom="line")+
+   ylab("Error rate") +
+  coord_cartesian(ylim = c(0, 1.6))+
+  
+   
+  xlab("")+
+  
+  ggtitle("Error rate for inhibitory condition: \nIndividual results (non-ABI)")
+
+plotinhibgroupnonabi
+```
+
+Arranging plots into grids.
+
+```{r}
+
+grid.arrange(plotnon.inhibgroup, plotnon.inhibgroupnonabi,plotinhibgroup, plotinhibgroupnonabi, ncol=2 )
+g<-arrangeGrob(plotnon.inhibgroup,plotnon.inhibgroupnonabi,plotinhibgroup,plotinhibgroupnonabi, ncol=2)
+ggsave(filename = "errorrateinhib.pdf", g)
+
+grid.arrange(part73.non.inhib.plot, part58.noninhib.plot, part73.inhib.plot, part58.inhib.plot, ncol=2)
+g<-arrangeGrob(part73.non.inhib.plot, part58.noninhib.plot, part73.inhib.plot, part58.inhib.plot, ncol=2)
+ggsave(filename = "part73.58.pdf", g)
+
+grid.arrange(plot1.inhib.error, plot2.noninhib.error, ncol=2 )
+g<-arrangeGrob(plot1.inhib.error, plot2.noninhib.error, ncol=2)
+ggsave(filename = "inhib.pdf", g)
+
+grid.arrange(plot1RT.inhib, plot2RT.noninhib, ncol = 2)
+g<-arrangeGrob(plot1RT.inhib, plot2RT.noninhib, ncol = 2)
+ggsave(filename = "time to sentence completion.pdf", g)
+
+```
+
